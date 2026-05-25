@@ -1,6 +1,6 @@
 # Papatyam — Gizlilik Politikası
 
-**Son güncelleme:** 20 Mayıs 2026
+**Son güncelleme:** 25 Mayıs 2026
 **Yürürlük tarihi:** Uygulamanın Play Store'da yayınlandığı tarih
 
 ---
@@ -83,8 +83,11 @@ Verilerinizi aşağıdaki hukuki dayanaklara dayanarak işliyoruz:
 
 - **Aktif kullanıcı verileri:** Kullanıcı uygulamayı aktif kullandığı süre boyunca.
 - **Silinmiş hesap verileri:** Kullanıcı silme talebi sonrası 30 gün boyunca soft delete (geri alınabilir), sonra kalıcı silme.
+- **Sır Avı konuşma içeriği:** Bir Sır Avı konuşması (oyunu) sona erdikten 10 gün sonra konuşma içeriği (sorular ve cevaplar), oyun bilgisi ve ilgili tüm tur kayıtları sunuculardan kalıcı ve geri getirilemez biçimde silinir. Bir konuşmayı kendi listenden gizlemeniz bu 10 günlük otomatik silmeyi değiştirmez; süre dolduğunda silme, gizleme tercihinden bağımsız uygulanır.
+- **Sır Avı oyun sayacı (kötüye kullanım önlemi):** Aynı kişiyle açılan oyunların sayısını tutan sayaç, içinde bulunulan ayın sonuna kadar saklanır ve her ay başında sıfırlanır. Bu sayaç yalnızca sayısal değerden ibarettir; konuşma içeriği, mesaj veya başka bir kişisel veri içermez.
 - **Audit log (denetim kayıtları):** KVKK Md.7 gereği 6 yıl saklanır. Bu kayıtlar anonimleştirilmiş hash içerir, kullanıcı kimliği geri çözülemez.
 - **Hata raporları (Crashlytics):** Firebase varsayılan saklama süresine tabi (genelde 90 gün).
+- **Sistem logları (operasyonel):** Hata kurtarma ve sistem sağlığı izleme amacıyla tutulan teknik kayıtlar en fazla 30 gün saklanır. Bu kayıtlar konuşma içeriği, mesaj metni veya çözülmüş kullanıcı verisi içermez.
 - **Rate limit kayıtları:** 48 saat sonra otomatik silinir (TTL policy).
 - **Nonce'lar (anti-replay):** 10 dakika sonra otomatik silinir (TTL policy).
 
