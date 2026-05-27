@@ -1,7 +1,9 @@
 # Papatyam — Gizlilik Politikası
 
-**Son güncelleme:** 25 Mayıs 2026
+**Gizlilik Politikası · Sürüm 1.0 · 28 Mayıs 2026**
 **Yürürlük tarihi:** Uygulamanın Play Store'da yayınlandığı tarih
+
+Bu sürüm önceki sürümlerin yerine geçer. Kayıtlı kullanıcılar değişiklikler hakkında bilgilendirilir ve yeniden açık rıza istenir.
 
 ---
 
@@ -26,10 +28,10 @@ Veri sorumlusuna bu adresten ulaşarak haklarınızı kullanabilir, soru sorabil
 
 Papatyam'ın en önemli özelliği, sunucunun kullanıcı verilerinin **açık halini görmemesidir**. Bu uygulamanın temel tasarım ilkesidir, ve aşağıdaki teknik tedbirlerle uygulanır:
 
-- **Telefon numarası asla açık olarak saklanmaz.** Numara, cihazınızda SHA-256 algoritmasıyla pepper (sunucu-tarafı gizli anahtar) kullanılarak hash'lenir. Sunucu yalnızca bu hash'i bilir; gerçek telefon numarasına erişimi yoktur.
+- **Telefon numarası asla açık olarak saklanmaz.** Numara, cihazınızda HMAC-SHA256 algoritmasıyla bir pepper anahtarı (sunucu-tarafı gizli anahtar; Firebase Remote Config üzerinden dağıtılır ve kısa TTL ile yenilenir) kullanılarak hash'lenir. Sunucu yalnızca bu hash'i bilir; gerçek telefon numarasına erişimi yoktur.
 - **PIN sunucuya gönderilmez.** PIN cihazınızda PBKDF2-HMAC-SHA256 algoritmasıyla 100.000 iterasyon ile master key'e dönüştürülür. Master key cihazınızdaki bellekte tutulur, sunucuya iletilmez.
-- **E-posta, profil bilgileri, mesajlar şifreli olarak saklanır.** AES-256-CBC algoritması ile master key (veya cihaz UUID'si) kullanılarak şifrelenir. Sunucu bu verilerin yalnızca şifreli halini görür; çözümleyemez.
-- **Mesaj içerikleri taraflar arası şifrelidir.** Mesaj alıcısına gönderilirken alıcının doğrulanmış anahtarı ile şifrelenir.
+- **E-posta, profil bilgileri ve geçmiş mesajlar şifreli olarak saklanır.** AES-256-CBC algoritması ile master key (veya cihaz UUID'si) kullanılarak şifrelenir. Sunucu bu verilerin yalnızca şifreli halini görür; çözümleyemez.
+- **Serbest mesajlar uçtan uca şifrelidir.** Kullanılan kriptografi: X25519 ECDH anahtar değişimi, mesaj başına AES-GCM şifreleme (12-byte nonce + bütünlük etiketi), TOFU (Trust On First Use) ile karşı tarafın açık anahtarının pin'lenmesi. Sunucumuz şifrelenmiş içeriği (ciphertext) saklar ama plaintext'i çözemez — bu nedenle "mesaj içeriklerini normalde okuyamayız" deriz. Bu Signal-absolute bir garanti değildir: şablon mesajları (önceden tanımlanmış 50 metin şablonu + 12 emoji-only şablon) multi-recipient akışı ve anonim moderasyon ihtiyacı için şifresiz işlenir; bu, kullanıcı şikâyetlerinin değerlendirilebilmesi için bilinçli bir ödünleşmedir.
 
 Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebileceği bilginin sınırlı olmasını sağlar.
 
@@ -39,32 +41,43 @@ Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebilec
 
 ### 4.1 Doğrudan Topladığımız Veriler
 
-- **Telefon numarası (hash'li):** Yalnızca SHA-256 + pepper ile hash'lenmiş hali. Kullanıcının kimliğini doğrulamak ve rehber eşleştirmelerini sağlamak için kullanılır. Açık hali asla sunucuda bulunmaz.
+- **Telefon numarası (hash'li):** Yalnızca HMAC-SHA256 + pepper ile hash'lenmiş hali. Kullanıcının kimliğini doğrulamak ve rehber eşleştirmelerini sağlamak için kullanılır. Açık hali asla sunucuda bulunmaz.
 - **E-posta adresi (şifreli, opsiyonel):** Hesap kurtarma ve eşleşme bildirimleri için. Master key veya UUID ile şifrelenmiş halde saklanır.
 - **PIN (cihazda hash):** PBKDF2-HMAC-SHA256 ile hash'lenir. Hash sunucuda doğrulama için saklanır; ham PIN değeri kimsenin erişiminde değildir.
 - **Yedek kod (cihazda hash):** PIN kaybı durumunda kullanılan 6 haneli kod. Hash olarak saklanır.
 - **FCM push token:** Bildirim göndermek için Firebase tarafından üretilen cihaz token'ı. Cihazın geçici tanımlayıcısıdır, kullanıcı kimliğine bağlı değildir.
 - **Profil bilgileri (opsiyonel, şifreli):** Cinsiyet, yaş aralığı, şehir, ilgi alanları. Tamamen kullanıcı kontrolündedir, doldurulması zorunlu değildir, herhangi bir zaman değiştirilebilir veya silinebilir.
-- **Ayarlar:** Rehber erişim tercihi, bildirim kanalı, PIN sorma sıklığı.
+- **Ayarlar:** Rehber erişim tercihi, bildirim kanalı, PIN sorma sıklığı, dil tercihi.
+- **Açık rıza kaydı:** Onboarding sırasında verdiğiniz KVKK açık rızasının kanıtı (bkz. 4.5).
 
 ### 4.2 Rehber Erişimi
 
-Uygulama, rehberinizdeki kişilerin telefon numaralarını da SHA-256 + pepper ile hash'leyerek eşleşme kontrolü yapar. **Rehberinizin açık hali (isimler, numaralar) hiçbir zaman sunucuya gönderilmez.** Yalnızca hash'lenmiş telefon numaraları, eşleşme kontrolü amacıyla sunucudaki diğer hash'lerle karşılaştırılır.
+Uygulama, rehberinizdeki kişilerin telefon numaralarını da HMAC-SHA256 + pepper ile hash'leyerek eşleşme kontrolü yapar. **Rehberinizin açık hali (isimler, numaralar) hiçbir zaman sunucuya gönderilmez.** Yalnızca hash'lenmiş telefon numaraları, eşleşme kontrolü amacıyla sunucudaki diğer hash'lerle karşılaştırılır.
 
 ### 4.3 Otomatik Olarak Toplanan Veriler
 
 - **Uygulama kullanım sayaçları:** Beğeni sayacı, şablon mesaj sayacı, oyun sayacı (aylık limit yönetimi için).
-- **Hata raporları (Crashlytics):** Uygulama çökmelerinde Firebase Crashlytics aracılığıyla anonim hata raporu toplanır. Bu raporlar kullanıcı kimliğine bağlı değildir.
-- **Rate limit kayıtları:** Spam koruması için kullanıcı başına saatlik/günlük istek sayısı.
+- **Çökme/hata raporları (Firebase Crashlytics):** Crashlytics ile çökme/hata raporlama yaparken pseudonymous (takma adlı) bir kullanıcı bağlantısı kurarız. Hesap UID'nizden HMAC ile türetilmiş 8-hex uzunluğunda bir `user_uid_hash` ve `premium_status` flag'i (premium / ücretsiz) Crashlytics'e yazılır. Ham UID, telefon numaranız veya başka bir kimlik bilgisi Crashlytics'e **asla** gönderilmez. `user_uid_hash` tek yönlüdür (geri çözüm pratik olarak imkânsızdır) ve farklı hesaplarda tekrar etmez. Bu sayede aynı kullanıcının birden fazla çökmesini ilişkilendirip kök neden tespit ederiz; kimliğinizi öğrenmeyiz. Crashlytics'e ayrıca uygulama sürümü, build türü (debug/release), platform (Android/iOS) ve cihaz dili gibi non-PII teknik bilgiler iletilir.
+- **Rate limit kayıtları:** Spam koruması için kullanıcı başına saatlik/günlük istek sayısı. Pseudonymous.
 
 ### 4.4 Toplamadığımız Veriler
 
 - Açık telefon numaranız (yalnızca hash)
 - Rehber kişilerin isimleri (yalnızca telefon hash'leri)
-- Mesajlarınızın açık metni (yalnızca şifreli hali)
+- Serbest mesajlarınızın açık metni (yalnızca uçtan uca şifreli ciphertext)
 - Konum bilginiz (uygulama konum izni istemez)
 - Reklam tanımlayıcıları (uygulamada reklam yoktur)
 - Çerez, kullanım analitiği (Google Analytics, Firebase Analytics gibi izleme yoktur)
+
+### 4.5 Açık Rıza Onayı (KVKK Md.5/1, GDPR Art.6/1/a)
+
+Onboarding sırasında telefon doğrulamasından sonra, Gizlilik Politikası'nı okuduğunuzu ve kişisel verilerinizin bu politika kapsamında işlenmesine açık rıza verdiğinizi onayladığınız bir checkbox sunulur. Bu kutuyu işaretlemeden kayıt tamamlanamaz. Onay verdiğinizde sunucumuza şu üç bilgi yazılır:
+
+- `kvkkOnayTarihi` — sunucu zaman damgası (kanıt amaçlı, KVKK Md.5/1 ispat yükü).
+- `kvkkPolitikaSurumu` — onayladığınız politika sürümü (bu belgede "1.0").
+- `kvkkPolitikaURL` — politikanın o anki yayın adresi (`https://sinan2727.github.io/papatya-legal/privacy_policy`).
+
+Politika sürümü güncellendiğinde, eski sürümle kayıt olmuş kullanıcılardan uygulama içinden yeniden açık rıza istenir; rıza yenilenmedikçe değiştirilmiş özellikler kısıtlanabilir.
 
 ---
 
@@ -72,7 +85,7 @@ Uygulama, rehberinizdeki kişilerin telefon numaralarını da SHA-256 + pepper i
 
 Verilerinizi aşağıdaki hukuki dayanaklara dayanarak işliyoruz:
 
-1. **Açık rıza (KVKK Md.5/1, GDPR Art.6/1/a):** Uygulamayı kurarken Hizmet Şartları ve Gizlilik Politikası'nı kabul ediyorsunuz.
+1. **Açık rıza (KVKK Md.5/1, GDPR Art.6/1/a):** Onboarding'de checkbox ile bilinçli olarak verdiğiniz açık rıza (ayrıntı 4.5).
 2. **Sözleşmenin ifası (KVKK Md.5/2-c, GDPR Art.6/1/b):** Hizmeti sağlamak için zorunlu işlemler (eşleşme kontrolü, mesaj iletimi).
 3. **Meşru menfaat (KVKK Md.5/2-f, GDPR Art.6/1/f):** Spam ve kötüye kullanımı önlemek için rate limit, App Check gibi güvenlik tedbirleri.
 4. **Hukuki yükümlülük (KVKK Md.5/2-ç, GDPR Art.6/1/c):** Yasal saklama süreleri ve denetim kayıtları.
@@ -81,15 +94,24 @@ Verilerinizi aşağıdaki hukuki dayanaklara dayanarak işliyoruz:
 
 ## 6. Veri Saklama Süreleri
 
-- **Aktif kullanıcı verileri:** Kullanıcı uygulamayı aktif kullandığı süre boyunca.
-- **Silinmiş hesap verileri:** Kullanıcı silme talebi sonrası 30 gün boyunca soft delete (geri alınabilir), sonra kalıcı silme.
-- **Sır Avı konuşma içeriği:** Bir Sır Avı konuşması (oyunu) sona erdikten 10 gün sonra konuşma içeriği (sorular ve cevaplar), oyun bilgisi ve ilgili tüm tur kayıtları sunuculardan kalıcı ve geri getirilemez biçimde silinir. Bir konuşmayı kendi listenden gizlemeniz bu 10 günlük otomatik silmeyi değiştirmez; süre dolduğunda silme, gizleme tercihinden bağımsız uygulanır.
-- **Sır Avı oyun sayacı (kötüye kullanım önlemi):** Aynı kişiyle açılan oyunların sayısını tutan sayaç, içinde bulunulan ayın sonuna kadar saklanır ve her ay başında sıfırlanır. Bu sayaç yalnızca sayısal değerden ibarettir; konuşma içeriği, mesaj veya başka bir kişisel veri içermez.
-- **Audit log (denetim kayıtları):** KVKK Md.7 gereği 6 yıl saklanır. Bu kayıtlar anonimleştirilmiş hash içerir, kullanıcı kimliği geri çözülemez.
-- **Hata raporları (Crashlytics):** Firebase varsayılan saklama süresine tabi (genelde 90 gün).
+Papatyam'ın saklama yaklaşımının temel ilkesi, **kullanıcı kontrolünün esas olmasıdır.** Her veri tipi için ya net bir maksimum süre tanımlanmış ya da kullanıcının uygulama içinden silme kontrolü vardır. KVKK Md.4-d (verilerin işlendikleri amaç için gerekli olan süreyi aşmaması ilkesi) bu kullanıcı kontrolü ile birlikte uygulanır.
+
+- **Aktif kullanıcı verileri (profil, eposta, ayarlar, PIN hash, yedek kod hash, FCM token):** Kullanıcı uygulamayı aktif kullandığı süre boyunca. Hesap silinince cascade olarak temizlenir.
+- **Sır Avı oturumları ve içerikleri:** Bir Sır Avı oyunu sona erdiğinden veya iptal edildiğinden 10 gün sonra konuşma içeriği (sorular ve cevaplar), oyun bilgisi ve ilgili tüm tur kayıtları sunuculardan kalıcı ve geri getirilemez biçimde silinir. Bu silme `bulmacaRetentionKontrol` adlı planlı görev ile her gece 03:00 İstanbul saatinde otomatik çalışır. Bir konuşmayı kendi listenden gizlemeniz bu 10 günlük otomatik silmeyi değiştirmez.
+- **Sır Avı oyun sayacı (kötüye kullanım önlemi):** Aynı kişiyle açılan oyunların sayısını tutan sayaç, içinde bulunulan ayın sonuna kadar saklanır ve her ay başında sıfırlanır. Yalnızca sayısal bir değerdir; içerik bilgisi içermez.
+- **Şablon mesajları:** Kullanıcı uygulama içinden bireysel veya toplu silme arayüzü ile silene kadar saklanır. Hesap silindiğinde cascade ile gönderen ve alıcı tarafında temizlenir. Sabit bir maksimum süre uygulanmaz; silme kararı kullanıcıdadır.
+- **Serbest mesajlar (uçtan uca şifreli):** Yalnızca ciphertext (şifreli hâl) sunucuda saklanır; sunucu plaintext'i okuyamaz. Mesaj ciphertext'i kullanıcı tek tek veya toplu silme arayüzüyle silene veya hesap silinene kadar tutulur. **Önemli not:** Mesaj şifresini çözen özel anahtar yalnızca cihazınızda saklanır. Uygulamayı kaldırırsanız veya cihaz verisi temizlenirse, sunucudaki ciphertext'ler artık çözülemez — yedek/kurtarma yolu kasıtlı olarak tasarlanmamıştır.
+- **Engelleme kayıtları (`blocks`):** Engellediğiniz kullanıcılarla ilişkili kayıtlar engeli kaldırana kadar saklanır; engel kaldırıldığında veya hesap silindiğinde temizlenir.
+- **Eşleşmeler ve beğeniler:** Hesap aktif olduğu sürece saklanır; hesap silmede cascade ile temizlenir.
+- **Hesap silme penceresi (soft delete):** Hesabınızı sildiğinizde 30 gün boyunca soft delete halinde tutulur. Bu süre içinde tekrar giriş yapıp geri alabilirsiniz. 30 gün sonra arka plan görevi `_kullaniciVerisiSilHard` çalışır ve aşağıdaki koleksiyonların hepsinden sizinle ilgili kayıtlar kalıcı silinir: kullanıcı profili, beğeniler, eşleşmeler, kotalar, engelleme kayıtları (iki yönlü), şablon mesajlar (gönderen ve alıcı yönü), yazma hakkı oturumları (iki yön), Sır Avı oturumları ve alt-tur kayıtları (iki yön), serbest mesajlar (iki yön). Toplam 13 koleksiyon temizlenir.
+- **Audit log (denetim kayıtları):** Hesap silme gibi önemli aksiyonların kanıtı için. KVKK Md.7 gereği 6 yıl saklanır. Bu kayıtlar yalnızca anonimleştirilmiş hash (HMAC ile türetilmiş) içerir; kullanıcı kimliği geri çözülemez.
+- **Açık rıza kayıtları (`kvkkOnayTarihi`, `kvkkPolitikaSurumu`, `kvkkPolitikaURL`):** Hesap yaşadığı sürece saklanır; açık rıza ispatı için gereklidir (KVKK Md.5/1). Hesap silindiğinde diğer kullanıcı verisi ile birlikte cascade silinir; yalnızca pseudonymous audit log kaydı kalır.
+- **Hata raporları (Crashlytics):** Firebase Crashlytics varsayılan saklama süresine tabi (yaklaşık 90 gün). Pseudonymous `user_uid_hash` taşır (ayrıntı 4.3).
 - **Sistem logları (operasyonel):** Hata kurtarma ve sistem sağlığı izleme amacıyla tutulan teknik kayıtlar en fazla 30 gün saklanır. Bu kayıtlar konuşma içeriği, mesaj metni veya çözülmüş kullanıcı verisi içermez.
-- **Rate limit kayıtları:** 48 saat sonra otomatik silinir (TTL policy).
+- **Rate limit kayıtları (`rate_limits`):** Idempotency için 48 saat TTL ile otomatik silinir. Pseudonymous.
 - **Nonce'lar (anti-replay):** 10 dakika sonra otomatik silinir (TTL policy).
+
+Tüm bu kalemlerin üzerinde **kullanıcı kontrolü esastır:** Ayarlar > Tehlikeli Bölge > Hesabımı Sil yolu ile hesap kapatılınca soft delete penceresi başlar; mesajlar, Sır Avı oturumları ve şablon mesajlar için uygulama içinden tek tek veya toplu silme arayüzleri mevcuttur.
 
 ---
 
@@ -118,7 +140,7 @@ Yanlış veya eksik verilerinizi uygulama üzerinden düzeltebilirsiniz (Ayarlar
 **Hesabınızı uygulama içinden silebilirsiniz:** Ayarlar > Tehlikeli Bölge > Hesabımı Sil. İşlem sonrası:
 - Hesabınız 30 gün boyunca soft delete halinde tutulur.
 - 30 gün içinde tekrar giriş yaparak geri alabilirsiniz.
-- 30 gün sonra tüm verileriniz kalıcı olarak silinir (yalnızca KVKK Md.7 audit log kaydı kalır — anonimleştirilmiş, kullanıcı kimliği geri çözülemez).
+- 30 gün sonra tüm verileriniz 13 koleksiyonda cascade ile kalıcı olarak silinir (yalnızca KVKK Md.7 audit log kaydı kalır — anonimleştirilmiş, kullanıcı kimliği geri çözülemez). Ayrıntı için bkz. madde 6.
 
 ### 8.4 Veri Taşıma Hakkı (GDPR Art.20)
 Verilerinizin makine-okunabilir formatta sağlanmasını talep edebilirsiniz. Bu talep için sinanfil@yahoo.com adresine yazınız.
@@ -149,7 +171,7 @@ Papatyam 18 yaş ve üzeri kullanıcılar içindir. 18 yaş altı çocuklardan b
 
 ## 10. Güvenlik Önlemleri
 
-- **Şifreleme:** AES-256-CBC (veri), PBKDF2-HMAC-SHA256 (anahtar türetme), SHA-256 + pepper (hash).
+- **Şifreleme:** AES-256-CBC (cihazda şifreli profil/eposta), AES-GCM (uçtan uca serbest mesaj), PBKDF2-HMAC-SHA256 (anahtar türetme), HMAC-SHA256 + pepper (telefon ve denetim hash'leri).
 - **App Check (Play Integrity):** Sahte istemcilerin sunucuya erişimini engeller (production'da aktif).
 - **Replay protection:** Nonce + timestamp ile her istek tek seferlik.
 - **Rate limiting:** Spam ve brute force saldırılarına karşı.
@@ -162,7 +184,7 @@ Tüm bu önlemlere rağmen internet üzerinden veri iletimi %100 güvenli değil
 
 ## 11. Politikadaki Değişiklikler
 
-Bu politikayı periyodik olarak güncelleyebiliriz. Önemli değişikliklerde uygulama içinden bildirim göndereceğiz. "Son güncelleme" tarihini her zaman kontrol edebilirsiniz.
+Bu politikayı periyodik olarak güncelleyebiliriz. Önemli değişikliklerde uygulama içinden bildirim göndereceğiz ve yeniden açık rıza isteyeceğiz (bkz. 4.5). Politikanın güncel sürüm numarası ve tarihi her zaman üst başlıkta yer alır.
 
 ---
 
