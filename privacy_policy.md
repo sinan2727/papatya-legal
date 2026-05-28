@@ -15,6 +15,16 @@ Bu uygulamayı kullanmaya başlayarak burada açıklanan veri işleme uygulamala
 
 ---
 
+## 1.5 Yaş Sınırı
+
+Papatyam yalnızca 18 yaşından büyük kullanıcılara hizmet verir. Kayıt sırasında bir yaş onayı adımı sunulur: kullanıcı bir checkbox ile 18 yaşından büyük olduğunu beyan eder ve 4 haneli doğum yılını girer (gün/ay sorulmaz — KVKK Md.4 veri minimizasyonu ilkesi gereği). Sunucuya yalnızca üç bilgi yazılır: `yasOnayi` (boolean), `dogumYili` (yıl tam sayısı) ve `yasOnayTarihi` (sunucu zaman damgası, açık rıza ispatı için).
+
+Yaş beyanı self-attested (kullanıcı sorumluluğunda) bir beyandır; teknik olarak kötü niyetli bir kullanıcının atlatması mümkündür ancak yasal sorumluluk tamamen kullanıcıdadır. 18 yaşından küçük olduğu sonradan tespit edilen hesaplar derhal askıya alınır ve kullanıcı verisi standart hesap silme akışı ile cascade olarak temizlenir.
+
+Politikamızın yaş sınırı maddesi güncellendiğinde, eski sürümle kayıt olmuş kullanıcılardan uygulama içinden yeniden yaş onayı istenir (KVKK reonay zinciri ile benzer şekilde).
+
+---
+
 ## 2. Veri Sorumlusu ve İletişim
 
 Veri sorumlusu: Sinan F.
@@ -49,6 +59,7 @@ Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebilec
 - **Profil bilgileri (opsiyonel, şifreli):** Cinsiyet, yaş aralığı, şehir, ilgi alanları. Tamamen kullanıcı kontrolündedir, doldurulması zorunlu değildir, herhangi bir zaman değiştirilebilir veya silinebilir.
 - **Ayarlar:** Rehber erişim tercihi, bildirim kanalı, PIN sorma sıklığı, dil tercihi.
 - **Açık rıza kaydı:** Onboarding sırasında verdiğiniz KVKK açık rızasının kanıtı (bkz. 4.5).
+- **Yaş onayı kaydı:** Yaş gate'i için verdiğiniz beyan + doğum yılı (yalnız yıl) + onay tarihi. Ayrıntılar Bölüm 1.5.
 
 ### 4.2 Rehber Erişimi
 
@@ -106,6 +117,7 @@ Papatyam'ın saklama yaklaşımının temel ilkesi, **kullanıcı kontrolünün 
 - **Hesap silme penceresi (soft delete):** Hesabınızı sildiğinizde 30 gün boyunca soft delete halinde tutulur. Bu süre içinde tekrar giriş yapıp geri alabilirsiniz. 30 gün sonra arka plan görevi `_kullaniciVerisiSilHard` çalışır ve aşağıdaki koleksiyonların hepsinden sizinle ilgili kayıtlar kalıcı silinir: kullanıcı profili, beğeniler, eşleşmeler, kotalar, engelleme kayıtları (iki yönlü), şablon mesajlar (gönderen ve alıcı yönü), yazma hakkı oturumları (iki yön), Sır Avı oturumları ve alt-tur kayıtları (iki yön), serbest mesajlar (iki yön). Toplam 13 koleksiyon temizlenir.
 - **Audit log (denetim kayıtları):** Hesap silme gibi önemli aksiyonların kanıtı için. KVKK Md.7 gereği 6 yıl saklanır. Bu kayıtlar yalnızca anonimleştirilmiş hash (HMAC ile türetilmiş) içerir; kullanıcı kimliği geri çözülemez.
 - **Açık rıza kayıtları (`kvkkOnayTarihi`, `kvkkPolitikaSurumu`, `kvkkPolitikaURL`):** Hesap yaşadığı sürece saklanır; açık rıza ispatı için gereklidir (KVKK Md.5/1). Hesap silindiğinde diğer kullanıcı verisi ile birlikte cascade silinir; yalnızca pseudonymous audit log kaydı kalır.
+- **Yaş onayı kayıtları (`yasOnayi`, `dogumYili`, `yasOnayTarihi`):** Hesap yaşadığı sürece saklanır; 18+ beyanı kanıtı için gereklidir (bkz. 1.5). Hesap silindiğinde cascade ile temizlenir; pseudonymous audit log kaydı 6 yıl (KVKK Md.7) saklanır.
 - **Hata raporları (Crashlytics):** Firebase Crashlytics varsayılan saklama süresine tabi (yaklaşık 90 gün). Pseudonymous `user_uid_hash` taşır (ayrıntı 4.3).
 - **Sistem logları (operasyonel):** Hata kurtarma ve sistem sağlığı izleme amacıyla tutulan teknik kayıtlar en fazla 30 gün saklanır. Bu kayıtlar konuşma içeriği, mesaj metni veya çözülmüş kullanıcı verisi içermez.
 - **Rate limit kayıtları (`rate_limits`):** Idempotency için 48 saat TTL ile otomatik silinir. Pseudonymous.
