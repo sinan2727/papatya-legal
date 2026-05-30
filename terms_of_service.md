@@ -1,6 +1,8 @@
 # Papatyam — Kullanım Şartları
 
-**Kullanım Şartları · Sürüm 1.0 · 28 Mayıs 2026**
+🌐 English: [Terms of Service](terms_of_service_en) · [Privacy Policy](privacy_policy_en)
+
+**Kullanım Şartları · Sürüm 1.1 · 30 Mayıs 2026**
 **Yürürlük tarihi:** Uygulamanın Play Store'da yayınlandığı tarih
 
 Bu sürüm önceki sürümlerin yerine geçer.
@@ -76,7 +78,7 @@ Yukarıdaki kurallar ihlal edilirse:
 Premium üyelik aşağıdaki ek özelliklere erişim sağlar:
 - Aylık 15 şablon mesaj gönderme hakkı (ücretsiz: 2/gün)
 - "İstediğimi Yazma Hakkı" — taraflar arası serbest mesajlaşma
-- "İstediğimi Sor" — Sır Avı oyununda özel soru sorma
+- "İstediğimi Sor" — Sır Avı oyununda özel soru sorma (jenerik AI soru üretimi dahil; kullanıcı verisi AI'ya gönderilmez)
 - Genişletilmiş eşleşme kotaları
 
 ### 6.2 Ödeme ve İade
