@@ -36,16 +36,21 @@ You may reach the data controller at this address to exercise your rights, ask q
 
 ---
 
-## 3. Architecture: Zero-Knowledge Approach
+## 3. Privacy Architecture
 
-The most important feature of Papatyam is that the server does **not see the cleartext form** of user data. This is the fundamental design principle of the application, and it is implemented through the following technical measures:
+Papatyam is designed to minimize the cleartext (unencrypted) personal data held on the server. Your privacy is protected by two layers: (1) sensitive data is transformed or encrypted on your device; (2) access to data on the server is tightly restricted by rules. The technical measures applied:
 
-- **The phone number is never stored in cleartext.** The number is hashed on your device using the HMAC-SHA256 algorithm with a pepper key (a server-side secret key distributed via Firebase Remote Config and rotated with a short TTL). The server knows only this hash; it has no access to the actual phone number.
+- **The phone number is not stored in cleartext.** In normal use, your number is transformed on your device into a one-way value (a "hash") using HMAC-SHA256, and only this hash is sent to the server. (The application key mixed into the hash — the "pepper" — is distributed to clients, so on its own it is not treated as a server secret.) The privacy of your number relies less on the one-way nature of this transformation and mainly on restricting, by rules, who can access this hash (see the "Access control" item below). **Exception:** in account-recovery flows (see 3.1) your raw phone number is sent to the server, where it is hashed solely to locate the relevant account and is not stored in cleartext.
+- **Access control.** Access to data on the server (Firestore) is restricted by security rules: a user can access only their own data and cannot arbitrarily read other users' hashes or records. Before a match occurs, a user's identity (phone hash) is never written to any record the other party can read — identities are revealed only when both sides mutually select each other. This access restriction is the primary guarantee of privacy.
 - **The PIN is not sent to the server.** On your device, the PIN is transformed into a master key using the PBKDF2-HMAC-SHA256 algorithm with 100,000 iterations. The master key is kept in your device's memory and is not transmitted to the server.
 - **E-mail, profile information, and past messages are stored encrypted.** They are encrypted using the AES-256-CBC algorithm with the master key (or the device UUID). The server sees only the encrypted form of this data; it cannot decrypt it.
 - **Free messages are end-to-end encrypted.** The cryptography used: X25519 ECDH key exchange, per-message AES-GCM encryption (12-byte nonce + integrity tag), and TOFU (Trust On First Use) pinning of the other party's public key. Our server stores the encrypted content (ciphertext) but cannot decrypt the plaintext — this is why we say "we normally cannot read message contents." This is not a Signal-absolute guarantee: template messages (50 predefined text templates + 12 emoji-only templates) are processed unencrypted for the multi-recipient flow and the need for anonymous moderation; this is a deliberate trade-off so that user complaints can be evaluated.
 
-This architecture ensures that, in the event of any data breach, the information an attacker could obtain is limited.
+This architecture aims to keep the cleartext data accessible in the event of any breach limited. No system can offer absolute security; these measures are intended to reduce risk.
+
+### 3.1 Account Recovery Exception
+
+In the flows used to recover your account when you forget your PIN or reinstall the app (verification with a backup code, or a reset code by e-mail), your phone number is sent to the server in cleartext. The server hashes this number solely to locate the relevant account; the cleartext number is not stored or permanently recorded.
 
 ---
 
@@ -53,7 +58,7 @@ This architecture ensures that, in the event of any data breach, the information
 
 ### 4.1 Data We Collect Directly
 
-- **Phone number (hashed):** Only its HMAC-SHA256 + pepper hashed form. Used to authenticate the user's identity and to enable contact matching. The cleartext form is never present on the server.
+- **Phone number (hashed):** In normal use, only its HMAC-SHA256 hashed form is stored (account-recovery flows are an exception — see 3.1). Used to authenticate the user's identity and to enable contact matching.
 - **E-mail address (encrypted, optional):** For account recovery and match notifications. Stored encrypted with the master key or UUID.
 - **PIN (hashed on device):** Hashed with PBKDF2-HMAC-SHA256. The hash is stored on the server for verification; the raw PIN value is not accessible to anyone.
 - **Backup code (hashed on device):** A 6-digit code used in case of PIN loss. Stored as a hash.
@@ -65,7 +70,7 @@ This architecture ensures that, in the event of any data breach, the information
 
 ### 4.2 Contact Access
 
-The application also hashes the phone numbers of the contacts in your address book with HMAC-SHA256 + pepper to perform match checking. **The cleartext form of your contacts (names, numbers) is never sent to the server.** Only the hashed phone numbers are compared against the other hashes on the server for the purpose of match checking.
+The application also hashes the phone numbers of the contacts in your address book on your device with HMAC-SHA256 to perform match checking. **The cleartext form of your contacts (names, numbers) is not sent to the server.** Only the hashed phone numbers are compared against the other hashes on the server for the purpose of match checking.
 
 ### 4.3 Automatically Collected Data
 
@@ -196,7 +201,7 @@ Papatyam is for users aged 18 and over. We do not knowingly collect data from ch
 
 ## 10. Security Measures
 
-- **Encryption:** AES-256-CBC (encrypted profile/e-mail on device), AES-GCM (end-to-end free messages), PBKDF2-HMAC-SHA256 (key derivation), HMAC-SHA256 + pepper (phone and audit hashes).
+- **Encryption and hashing:** AES-256-CBC (encrypted profile/e-mail on device), AES-GCM (end-to-end free messages), PBKDF2-HMAC-SHA256 (key derivation), HMAC-SHA256 (phone and audit hashes).
 - **App Check (Play Integrity):** Prevents fake clients from accessing the server (active in production).
 - **Replay protection:** Each request is single-use via nonce + timestamp.
 - **Rate limiting:** Against spam and brute-force attacks.

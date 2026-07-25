@@ -36,16 +36,21 @@ Veri sorumlusuna bu adresten ulaşarak haklarınızı kullanabilir, soru sorabil
 
 ---
 
-## 3. Mimari: Sıfır-Bilgi (Zero-Knowledge) Yaklaşımı
+## 3. Gizlilik Mimarisi
 
-Papatyam'ın en önemli özelliği, sunucunun kullanıcı verilerinin **açık halini görmemesidir**. Bu uygulamanın temel tasarım ilkesidir, ve aşağıdaki teknik tedbirlerle uygulanır:
+Papatyam, sunucuda tutulan açık (şifrelenmemiş) kişisel veriyi en aza indirecek şekilde tasarlanmıştır. Gizliliğiniz iki katmanla korunur: (1) hassas veriler cihazınızda dönüştürülür veya şifrelenir; (2) sunucudaki verilere erişim sıkı kurallarla sınırlandırılır. Uygulanan teknik tedbirler:
 
-- **Telefon numarası asla açık olarak saklanmaz.** Numara, cihazınızda HMAC-SHA256 algoritmasıyla bir pepper anahtarı (sunucu-tarafı gizli anahtar; Firebase Remote Config üzerinden dağıtılır ve kısa TTL ile yenilenir) kullanılarak hash'lenir. Sunucu yalnızca bu hash'i bilir; gerçek telefon numarasına erişimi yoktur.
+- **Telefon numarası açık olarak saklanmaz.** Numaranız normal kullanımda cihazınızda HMAC-SHA256 ile tek yönlü bir değere ("hash") dönüştürülür ve sunucuya yalnızca bu hash iletilir. (Hash'e karıştırılan uygulama anahtarı — "pepper" — istemcilere dağıtıldığından tek başına bir sunucu sırrı olarak değerlendirilmez.) Numaranızın gizliliği bu dönüşümün tek yönlü olmasından çok, asıl olarak bu hash'e kimlerin erişebileceğinin kurallarla sınırlandırılmasına dayanır (aşağıdaki "Erişim kontrolü" maddesi). **İstisna:** hesap kurtarma akışlarında (bkz. 3.1) ham telefon numaranız sunucuya iletilir, orada yalnızca ilgili hesabı bulmak için hash'lenir ve açık haliyle saklanmaz.
+- **Erişim kontrolü.** Sunucudaki (Firestore) verilere erişim güvenlik kurallarıyla sınırlıdır: bir kullanıcı yalnızca kendi verisine erişebilir, başka kullanıcıların hash'lerini veya kayıtlarını keyfi olarak okuyamaz. Eşleşme gerçekleşmeden bir kullanıcının kimliği (telefon hash'i) karşı tarafın okuyabileceği hiçbir kayda yazılmaz — kimlikler yalnızca iki taraf da birbirini karşılıklı seçtiğinde açılır. Gizliliğin asıl garantisi bu erişim sınırlamasıdır.
 - **PIN sunucuya gönderilmez.** PIN cihazınızda PBKDF2-HMAC-SHA256 algoritmasıyla 100.000 iterasyon ile master key'e dönüştürülür. Master key cihazınızdaki bellekte tutulur, sunucuya iletilmez.
 - **E-posta, profil bilgileri ve geçmiş mesajlar şifreli olarak saklanır.** AES-256-CBC algoritması ile master key (veya cihaz UUID'si) kullanılarak şifrelenir. Sunucu bu verilerin yalnızca şifreli halini görür; çözümleyemez.
 - **Serbest mesajlar uçtan uca şifrelidir.** Kullanılan kriptografi: X25519 ECDH anahtar değişimi, mesaj başına AES-GCM şifreleme (12-byte nonce + bütünlük etiketi), TOFU (Trust On First Use) ile karşı tarafın açık anahtarının pin'lenmesi. Sunucumuz şifrelenmiş içeriği (ciphertext) saklar ama plaintext'i çözemez — bu nedenle "mesaj içeriklerini normalde okuyamayız" deriz. Bu Signal-absolute bir garanti değildir: şablon mesajları (önceden tanımlanmış 50 metin şablonu + 12 emoji-only şablon) multi-recipient akışı ve anonim moderasyon ihtiyacı için şifresiz işlenir; bu, kullanıcı şikâyetlerinin değerlendirilebilmesi için bilinçli bir ödünleşmedir.
 
-Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebileceği bilginin sınırlı olmasını sağlar.
+Bu mimari, herhangi bir veri sızıntısı durumunda erişilebilecek açık verinin sınırlı kalmasını amaçlar. Hiçbir sistem mutlak güvenlik sunamaz; bu tedbirler riski azaltmaya yöneliktir.
+
+### 3.1 Hesap Kurtarma İstisnası
+
+PIN'inizi unuttuğunuzda veya uygulamayı yeniden kurduğunuzda hesabınızı kurtarmak için kullanılan akışlarda (yedek kod ile doğrulama veya e-posta ile sıfırlama kodu) telefon numaranız sunucuya açık olarak iletilir. Sunucu bu numarayı yalnızca ilgili hesabı bulmak amacıyla hash'ler; açık numara saklanmaz veya kalıcı olarak kayıt altına alınmaz.
 
 ---
 
@@ -53,7 +58,7 @@ Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebilec
 
 ### 4.1 Doğrudan Topladığımız Veriler
 
-- **Telefon numarası (hash'li):** Yalnızca HMAC-SHA256 + pepper ile hash'lenmiş hali. Kullanıcının kimliğini doğrulamak ve rehber eşleştirmelerini sağlamak için kullanılır. Açık hali asla sunucuda bulunmaz.
+- **Telefon numarası (hash'li):** Normal kullanımda yalnızca HMAC-SHA256 ile hash'lenmiş hali saklanır (hesap kurtarma akışları istisnadır — bkz. 3.1). Kullanıcının kimliğini doğrulamak ve rehber eşleştirmelerini sağlamak için kullanılır.
 - **E-posta adresi (şifreli, opsiyonel):** Hesap kurtarma ve eşleşme bildirimleri için. Master key veya UUID ile şifrelenmiş halde saklanır.
 - **PIN (cihazda hash):** PBKDF2-HMAC-SHA256 ile hash'lenir. Hash sunucuda doğrulama için saklanır; ham PIN değeri kimsenin erişiminde değildir.
 - **Yedek kod (cihazda hash):** PIN kaybı durumunda kullanılan 6 haneli kod. Hash olarak saklanır.
@@ -65,7 +70,7 @@ Bu mimari, herhangi bir veri sızıntısı durumunda saldırganın elde edebilec
 
 ### 4.2 Rehber Erişimi
 
-Uygulama, rehberinizdeki kişilerin telefon numaralarını da HMAC-SHA256 + pepper ile hash'leyerek eşleşme kontrolü yapar. **Rehberinizin açık hali (isimler, numaralar) hiçbir zaman sunucuya gönderilmez.** Yalnızca hash'lenmiş telefon numaraları, eşleşme kontrolü amacıyla sunucudaki diğer hash'lerle karşılaştırılır.
+Uygulama, rehberinizdeki kişilerin telefon numaralarını da cihazınızda HMAC-SHA256 ile hash'leyerek eşleşme kontrolü yapar. **Rehberinizin açık hali (isimler, numaralar) sunucuya gönderilmez.** Yalnızca hash'lenmiş telefon numaraları, eşleşme kontrolü amacıyla sunucudaki diğer hash'lerle karşılaştırılır.
 
 ### 4.3 Otomatik Olarak Toplanan Veriler
 
@@ -196,7 +201,7 @@ Papatyam 18 yaş ve üzeri kullanıcılar içindir. 18 yaş altı çocuklardan b
 
 ## 10. Güvenlik Önlemleri
 
-- **Şifreleme:** AES-256-CBC (cihazda şifreli profil/eposta), AES-GCM (uçtan uca serbest mesaj), PBKDF2-HMAC-SHA256 (anahtar türetme), HMAC-SHA256 + pepper (telefon ve denetim hash'leri).
+- **Şifreleme ve hash:** AES-256-CBC (cihazda şifreli profil/eposta), AES-GCM (uçtan uca serbest mesaj), PBKDF2-HMAC-SHA256 (anahtar türetme), HMAC-SHA256 (telefon ve denetim hash'leri).
 - **App Check (Play Integrity):** Sahte istemcilerin sunucuya erişimini engeller (production'da aktif).
 - **Replay protection:** Nonce + timestamp ile her istek tek seferlik.
 - **Rate limiting:** Spam ve brute force saldırılarına karşı.
