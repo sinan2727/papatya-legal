@@ -3,6 +3,7 @@
 🌐 English: [Privacy Policy](privacy_policy_en) · [Terms of Service](terms_of_service_en)
 
 **Gizlilik Politikası · Sürüm 1.1 · 30 Mayıs 2026**
+**Son güncelleme:** 25 Temmuz 2026
 **Yürürlük tarihi:** Uygulamanın Play Store'da yayınlandığı tarih
 
 Bu sürüm önceki sürümlerin yerine geçer. Kayıtlı kullanıcılar değişiklikler hakkında bilgilendirilir ve yeniden açık rıza istenir.

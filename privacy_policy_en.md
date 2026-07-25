@@ -3,6 +3,7 @@
 🌐 Türkçe: [Gizlilik Politikası](privacy_policy) · [Kullanım Şartları](terms_of_service)
 
 **Privacy Policy · Version 1.1 · 30 May 2026**
+**Last updated:** 25 July 2026
 **Effective date:** The date the application is published on the Play Store
 
 This version supersedes all previous versions. Registered users are informed of changes and asked to renew their explicit consent.
